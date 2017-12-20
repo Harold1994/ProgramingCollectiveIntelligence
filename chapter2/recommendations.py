@@ -140,7 +140,8 @@ def loadMovieLens(path='./data/movielens'):
 
 
 prefs = loadMovieLens()
-print(prefs['87'])
+itemSim= calculateSimilarItems(prefs,50)
+print(getRecommendedItems(prefs,itemSim,'87')[0:30])
 # itemsim = calculateSimilarItems(critics)
 # print(itemsim)
 # print(getRecommendedItems(critics, itemsim, 'Toby'))
