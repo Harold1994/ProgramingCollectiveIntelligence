@@ -117,7 +117,7 @@ def getdepth(clust):
     return max(getdepth(clust.left), getdepth(clust.right) + clust.distance)
 
 
-def drawdendrogram(cluster, labels, jpeg='clusters.jpg'):
+def drawdendrogram(clust, labels, jpeg='clusters.jpg'):
     h = getheight(clust) * 20
     w = 1200
     depth = getdepth(clust)
@@ -198,12 +198,55 @@ def tanimoto(v1, v2):
     return 1 - (float(shr) / (c1 + c2 - shr))
 
 
-wants, people, data = readfile('data/zebo.txt')
-clust = hcluster(data, distance=tanimoto)
-drawdendrogram(clust, wants)
-# blognames, words, data = readfile('data/blogdata.txt')
-# kcluste = kcluster(data,k=4)
-# print([[blognames[r] for r in kcluste[i]] for i in range(4)],end='\n')
+# 多维缩放
+def scaledown(data, distance=pearson, rate=0.01):
+    n = len(data)
+    realdist = [[distance(data[i], data[j]) for j in range(n)] for i in range(0, n)]
+    loc = [[random.random(), random.random()] for i in range(n)]
+    fakedist = [[0.0 for j in range(n)] for i in range(n)]
+    lasterror = None
+    for m in range(1, 1000):
+        for i in range(n):
+            for j in range(n):
+                fakedist[i][j] = sqrt(sum([pow(loc[i][x] - loc[j][x], 2) for x in range(len(loc[i]))]))
+        grad = [[0.0, 0.0] for i in range(n)]
+        totalerror = 0
+        for k in range(n):
+            for j in range(n):
+                if i == k:
+                    continue
+                if realdist[j][k] != 0:
+                    errorterm = (fakedist[j][k] - realdist[j][k]) / realdist[j][k]
+                    grad[k][0] += ((loc[k][0] - loc[j][0]) / fakedist[j][k] * errorterm)
+                    grad[k][1] += ((loc[k][1] - loc[j][1]) / fakedist[j][k] * errorterm)
+                    totalerror += abs(errorterm)
+                else:
+                    continue
+        print(totalerror)
+        if lasterror and lasterror < totalerror:
+            break
+        lasterror = totalerror
+        for k in range(n):
+            loc[k][0] -= rate * grad[k][0]
+            loc[k][1] -= rate * grad[k][1]
+    return loc
 
-# clust = hcluster(data)
-# drawdendrogram(clust, blognames, jpeg='blogclust.jpg')
+
+def draw2d(data, labels, jpeg='mds2d.jpg'):
+    img = Image.new('RGB', (2000, 2000), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    for i in range(len(data)):
+        x = (data[i][0] + 0.5) * 1000
+        y = (data[i][1] + 0.5) * 1000
+        draw.text((x, y), labels[i], (0, 0, 0))
+    img.save(jpeg, 'JPEG')
+
+
+blognames, words, data = readfile('data/blogdata.txt')
+coords = scaledown(data)
+draw2d(coords, blognames, jpeg='blogs2d.jpeg')
+# # kcluste = kcluster(data,k=4)
+# # print([[blognames[r] for r in kcluste[i]] for i in range(4)],end='\n')
+#
+# # clust = hcluster(data)
+# # drawdendrogram(clust, blognames, jpeg='blogclust.jpg')
