@@ -1,33 +1,70 @@
 import urllib.request
+
+import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
-
+import sqlite3
 ignorewords = set(['the', 'of', 'to', 'and', 'a', 'in', 'is', 'it'])
 
 
 class crawler:
     def __init__(self, dbname):
-        pass
+        self.con = sqlite3.connect(dbname)
 
     def __del__(self):
-        pass
+        self.con.close()
 
     def dbcommit(self):
-        pass
+        self.con.commit()
 
     def getentryid(self, table, field, value, createNew=True):
-        return None
+        cur = self.con.execute("select rowid from %s where %s='%s'" % (table, field, value))
+        res = cur.fetchone()
+        if res == None:
+            cur = self.con.execute(
+                "insert into %s (%s) values ('%s')" % (table, field, value))
+            return cur.lastrowid
+        else:
+            return res[0]
+
 
     def addtoindex(self, url, soup):
-        print('Index %s' % url)
+        if self.isindexed(url):
+            return
+        print('Indexing' + url)
+        text = self.gettextonly(soup)
+        words = self.seperatewords(text)
+        urlid = self.getentryid('urllist', 'url', url)
+        for i in range(len((words))):
+            word = words[i]
+            if word in ignorewords:
+                continue
+            wordid = self.getentryid('wordlist', 'word', word)
+            self.con.execute("insert into wordlocation(urlid,wordid,location)\
+                             values (%d,%d,%d)" % urlid, wordid, i)
 
     def gettextonly(self, soup):
-        return None
+        v = soup.string
+        if v == None:
+            c = soup.contents
+            resulttext = ''
+            for t in c:
+                subtext = self.gettextonly(t)
+                resulttext += subtext + '\n'
+            return resulttext
+        else:
+            return v.strip()
 
     def seperatewords(self, text):
-        return None
+        splitter = re.compile('\\W*')
+        return [s.lower() for s in splitter.split(text) if s != '']
 
     def isindexed(self, url):
+        u = self.con.execute("select rowid from urllist where url='%s'" % url).fetchone()
+        if u != None:
+            v = self.con.execute('select * from wordlocation where urlid=%d' % u[0]).fetchone()
+            if v != None:
+                return True
         return False
 
     def addlinkref(self, urlFrom, urlTo, linkText):
@@ -60,9 +97,51 @@ class crawler:
                 pages = newpages
 
     def createindextables(self):
-        pass
+        self.con.execute('create table urllist(url)')
+        self.con.execute('create table wordlist(word)')
+        self.con.execute('create table wordlocation(urlid,wordid,location)')
+        self.con.execute('create table link(fromid integer,toid integer)')
+        self.con.execute('create table linkwords(wordid,linkid)')
+        self.con.execute('create index wordidx on wordlist(word)')
+        self.con.execute('create index urlidx on urllist(url)')
+        self.con.execute('create index wordurlidx on wordlocation(wordid)')
+        self.con.execute('create index urltoidx on link(toid)')
+        self.con.execute('create index urlfromidx on link(fromid)')
+        self.dbcommit()
 
 
-pageList = ['https://en.wikipedia.org/wiki/Wikipedia']
-crawler = crawler('')
-print(crawler.crawl(pageList))
+class searcher:
+    def __init__(self, dbname):
+        self.con = sqlite3.connect(dbname)
+
+    def __del__(self):
+        self.con.close()
+
+    def getmatchrows(self, q):
+        fieldlist = 'w0.urlid'
+        tablelist = ''
+        clauselist = ''
+        wordids = []
+        words = q.split(' ')
+        tablenumber = 0
+
+        for word in words:
+            wordrow = self.con.execute(
+                "select rowid from wordlist where word='%s'" % word).fetchone()
+            if wordrow != None:
+                wordid = wordrow[0]
+                wordids.append(wordid)
+                if tablenumber > 0:
+                    tablelist += ","
+                    clauselist += ' and '
+                    clauselist += "w%d.urlid=w%d.urlid and " % (tablenumber - 1, tablenumber)
+                fieldlist += ',w%d.location' % tablenumber
+                tablelist += 'wordlocation w%d' % tablenumber
+                clauselist += 'w%d.wordid=%d' % (tablenumber, wordid)
+                tablenumber += 1
+
+        fullquerry = 'select %s from %s where %s' % (fieldlist, tablelist, clauselist)
+        cur = self.con.execute(fullquerry)
+        rows = [row for row in cur]
+
+        return rows, wordids
