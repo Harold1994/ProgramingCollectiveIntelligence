@@ -1,4 +1,6 @@
 from chapter4 import searchengine
 
-e = searchengine.searcher('searchindex.db')
-print(e.getmatchrows('functional programming'))
+clawer = searchengine.crawler('searchindex.db')
+clawer.calculatepagerank()
+# e = searchengine.searcher('searchindex.db')
+# e.query("functional programming")
