@@ -7,6 +7,6 @@ from chapter4 import nn
 # e.query("functional programming")
 
 mynet = nn.searchnet('nn.db')
-# mynet.maketables()
+mynet.maketables()
 mynet.generatehiddennode([101, 103], [201, 202, 203])
 print(mynet.getresult([101, 103], [201, 202, 203]))
