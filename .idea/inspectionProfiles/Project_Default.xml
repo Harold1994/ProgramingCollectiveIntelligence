@@ -13,6 +13,7 @@
       <option name="ignoredIdentifiers">
         <list>
           <option value="chapter3.generatefeedvetor.__builtin__" />
+          <option value="chapter4.main.wBank" />
         </list>
       </option>
     </inspection_tool>
