@@ -61,7 +61,8 @@ def substractweight(dist,const=1.0):
     else:
         return const-dist
 
-def gaussion(dist,sigma=3.0):
+
+def gaussion(dist, sigma=20.0):
     return math.e**(-dist**2/(2*sigma**2))
 
 def weightedknn(data,vec1,k=5,weightf=gaussion):
@@ -100,3 +101,26 @@ def crossvalidate(algf,data,trials=100,test=0.05):
         trainset,testset = dividedata(data,test)
         error+=testalgorithom(algf,trainset,testset)
     return error/trials
+
+
+def wineset2():
+    rows = []
+    for i in range(300):
+        rating = random.random() * 50 + 50
+        age = random.random() * 50
+        aisle = float(random.randint(1, 20))
+        bottlesize = [375.0, 750.0, 1500.0, 3000.0][random.randint(0, 3)]
+        price = wineprice(rating, age)
+        price *= (bottlesize / 750)
+        price *= (random.random() * 0.9 + 0.2)
+        rows.append({'input': (rating, age, aisle, bottlesize),
+                     'result': price})
+    return rows
+
+
+def rescale(data, scale):
+    scaleddata = []
+    for row in data:
+        scaled = [scale[i] * row['input'][i] for i in range(len(scale))]
+        scaleddata.append({'input': scaled, 'result': row['result']})
+    return scaleddata

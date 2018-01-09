@@ -10,9 +10,6 @@ class searchnet:
     def __del__(self):
         self.con.close()
 
-
-
-
     def maketables(self):
         self.con.execute('create table hiddennode(create_key)')
         self.con.execute('create table wordhidden(fromid,toid,strength)')
