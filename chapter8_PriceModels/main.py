@@ -1,4 +1,4 @@
-from chapter8_PriceModels import numpredict, optimization
+from chapter8_PriceModels import numpredict
 from chapter8_PriceModels.numpredict import wineprice
 
 
