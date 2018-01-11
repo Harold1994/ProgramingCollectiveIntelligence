@@ -1,29 +1,39 @@
-import random
-
+from random import random, randint
 import math
 
 
 def wineprice(rating, age):
     peak_age = rating - 50
+
+    # Calculate price based on rating
     price = rating / 2
     if age > peak_age:
-        price = price * (5 - (age - peak_age))
+        # Past its peak, goes bad in 5 years
+        price *= (5 - (age - peak_age))
     else:
-        price = price * (5 * (age + 1) / peak_age)
-    if price < 0:
-        price = 0
+        # Increases to 5x original value as it
+        # approaches its peak
+        price *= (5 * ((age + 1) / peak_age))
+    if price < 0: price = 0
     return price
 
 
 def wineset1():
     rows = []
     for i in range(300):
-        rating = random.random() * 50 + 50
-        age = random.random() * 50
+        # Create a random age and rating
+        rating = random() * 50 + 50
+        age = random() * 50
+
+        # Get reference price
         price = wineprice(rating, age)
 
-        price *= (random.random() * 0.4 + 0.8)
-        rows.append({'input': (rating, age), 'result': price})
+        # Add some noise
+        price *= (random() * 0.4 + 0.8)
+
+        # Add to the dataset
+        rows.append({'input': (rating, age),
+                     'result': price})
     return rows
 
 
@@ -36,83 +46,101 @@ def euclidean(v1, v2):
 
 def getdistances(data, vec1):
     distancelist = []
+
+    # Loop over every item in the dataset
     for i in range(len(data)):
         vec2 = data[i]['input']
+
+        # Add the distance and the index
         distancelist.append((euclidean(vec1, vec2), i))
+
+    # Sort by distance
     distancelist.sort()
     return distancelist
 
 
 def knnestimate(data, vec1, k=5):
+    # Get sorted distances
     dlist = getdistances(data, vec1)
     avg = 0.0
+
+    # Take the average of the top k results
     for i in range(k):
         idx = dlist[i][1]
         avg += data[idx]['result']
-    avg = avg / k
+    avg /= k
     return avg
 
-def inverseweight(dist,num=1.0,const=0.1):
-    return num/(dist+const)
 
-def substractweight(dist,const=1.0):
-    if dist>const:
+def inverseweight(dist, num=1.0, const=0.1):
+    return num / (dist + const)
+
+
+def subtractweight(dist, const=1.0):
+    if dist > const:
         return 0
     else:
-        return const-dist
+        return const - dist
 
 
-def gaussion(dist, sigma=20.0):
-    return math.e**(-dist**2/(2*sigma**2))
+def gaussian(dist, sigma=5.0):
+    return math.e ** (-dist ** 2 / (2 * sigma ** 2))
 
-def weightedknn(data,vec1,k=5,weightf=gaussion):
-    dlist = getdistances(data,vec1)
+
+def weightedknn(data, vec1, k=5, weightf=gaussian):
+    # Get distances
+    dlist = getdistances(data, vec1)
     avg = 0.0
     totalweight = 0.0
+
+    # Get weighted average
     for i in range(k):
         dist = dlist[i][0]
         idx = dlist[i][1]
-        weight=weightf(dist)
-        avg+=weight*data[idx]['result']
-        totalweight+=weight
-    avg = avg/totalweight
+        weight = weightf(dist)
+        avg += weight * data[idx]['result']
+        totalweight += weight
+    if totalweight == 0: return 0
+    avg = avg / totalweight
     return avg
-#交叉验证
-def dividedata(data,test=0.05):
-    trainset=[]
-    testset=[]
+
+
+def dividedata(data, test=0.05):
+    trainset = []
+    testset = []
     for row in data:
-        if random.random()<test:
+        if random() < test:
             testset.append(row)
         else:
             trainset.append(row)
-    return trainset,testset
+    return trainset, testset
 
-def testalgorithom(algf,trainset,testset):
+
+def testalgorithm(algf, trainset, testset):
     error = 0.0
     for row in testset:
-        guess = algf(trainset,row['input'])
-        error += (row['result']-guess)**2
-    return error/len(testset)
+        guess = algf(trainset, row['input'])
+        error += (row['result'] - guess) ** 2
+    return error / len(testset)
 
-def crossvalidate(algf,data,trials=100,test=0.05):
-    error=0.0
+
+def crossvalidate(algf, data, trials=100, test=0.1):
+    error = 0.0
     for i in range(trials):
-        trainset,testset = dividedata(data,test)
-        error+=testalgorithom(algf,trainset,testset)
-    return error/trials
-
+        trainset, testset = dividedata(data, test)
+        error += testalgorithm(algf, trainset, testset)
+    return error / trials
 
 def wineset2():
     rows = []
     for i in range(300):
-        rating = random.random() * 50 + 50
-        age = random.random() * 50
-        aisle = float(random.randint(1, 20))
-        bottlesize = [375.0, 750.0, 1500.0, 3000.0][random.randint(0, 3)]
+        rating = random() * 50 + 50
+        age = random() * 50
+        aisle = float(randint(1, 20))
+        bottlesize = [375.0, 750.0, 1500.0, 3000.0][randint(0, 3)]
         price = wineprice(rating, age)
         price *= (bottlesize / 750)
-        price *= (random.random() * 0.9 + 0.2)
+        price *= (random() * 0.9 + 0.2)
         rows.append({'input': (rating, age, aisle, bottlesize),
                      'result': price})
     return rows
@@ -124,3 +152,40 @@ def rescale(data, scale):
         scaled = [scale[i] * row['input'][i] for i in range(len(scale))]
         scaleddata.append({'input': scaled, 'result': row['result']})
     return scaleddata
+
+
+def createcostfunction(algf, data):
+    def costf(scale):
+        sdata = rescale(data, scale)
+        return crossvalidate(algf, sdata, trials=20)
+
+    return costf
+
+
+def wineset3():
+    rows = wineset1()
+    for row in rows:
+        if random < 0.5:
+            row['result'] *= 0.5
+    return rows
+
+
+def probguess(data, vec1, low, high, k=5, weightf=gaussian):
+    dlist = getdistances(data, vec1)
+    nweight = 0.0
+    tweight = 0.0
+    for i in range(k):
+        dist = dlist[i][0]
+        idx = dlist[i][1]
+        weight = weightf(dist)
+        v = data[idx]['result']
+
+        if v > low and v < high:
+            nweight += weight
+        tweight += weight
+    if tweight == 0:
+        return 0
+    return nweight / tweight
+
+
+weightdomain = [(0, 20)] * 4

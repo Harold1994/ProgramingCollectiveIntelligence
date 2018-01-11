@@ -10,10 +10,11 @@ people = [('Seymour','BOS'),
 destination = 'LGA'
 flights={}
 
-for line in open('schedule'):
-    origin,dest,depart,arrive,price=line.strip().split(',')
-    flights.setdefault((origin,dest),[])
-    flights[(origin,dest)].append((depart,arrive,int(price)))
+
+# for line in open('schedule'):
+#     origin,dest,depart,arrive,price=line.strip().split(',')
+#     flights.setdefault((origin,dest),[])
+#     flights[(origin,dest)].append((depart,arrive,int(price)))
 
 
 def getminutes(t):
